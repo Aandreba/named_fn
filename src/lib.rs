@@ -48,8 +48,8 @@ pub fn named_fn(
     for param in generics.params.iter() {
         match param {
             GenericParam::Type(TypeParam { attrs, ident, .. }) => {
-                phantom.push(quote! { #(#attrs)* named_fn_core::marker::PhantomData<#ident> });
-                phantom_new.push(quote! { named_fn_core::marker::PhantomData });
+                phantom.push(quote! { #(#attrs)* ::core::marker::PhantomData<#ident> });
+                phantom_new.push(quote! { ::core::marker::PhantomData });
             },
             _ => continue,
         };
@@ -66,9 +66,7 @@ pub fn named_fn(
     let mut struct_ident = format_ident!("{}", to_pascal_case(&ident.to_string()));
     struct_ident.set_span(ident.span());
 
-    return quote! {
-        extern crate core as named_fn_core;
-        
+    return quote! {        
         #(#attrs)*
         #vis struct #struct_ident #struct_ty_gen (#(#phantom),*);
 
@@ -79,20 +77,20 @@ pub fn named_fn(
             }
         }
 
-        impl #impl_gen named_fn_core::ops::FnOnce<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
+        impl #impl_gen ::core::ops::FnOnce<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
             type Output = #output;
             extern "rust-call" fn call_once(self, (#(#arg_pats,)*): (#(#arg_tys,)*)) -> Self::Output #block
         }
 
-        impl #impl_gen named_fn_core::ops::FnMut<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
+        impl #impl_gen ::core::ops::FnMut<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
             extern "rust-call" fn call_mut(&mut self, (#(#arg_pats,)*): (#(#arg_tys,)*)) -> Self::Output #block
         }
 
-        impl #impl_gen named_fn_core::ops::Fn<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
+        impl #impl_gen ::core::ops::Fn<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
             extern "rust-call" fn call(&self, (#(#arg_pats,)*): (#(#arg_tys,)*)) -> Self::Output #block
         }
 
-        impl #struct_ty_gen named_fn_core::default::Default for #struct_ident #struct_ty_gen {
+        impl #struct_ty_gen ::core::default::Default for #struct_ident #struct_ty_gen {
             #[inline]
             fn default () -> Self {
                 Self::new()

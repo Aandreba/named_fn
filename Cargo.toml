@@ -1,6 +1,6 @@
 [package]
 name = "named_fn"
-version = "0.2.0"
+version = "0.2.1"
 description = "Create typed functions that can be added as generics"
 authors = ["Alex Andreba <aandrebafreelancer@gmail.com>"]
 license = "MIT"
