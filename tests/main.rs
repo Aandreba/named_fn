@@ -1,5 +1,4 @@
 #![feature(unboxed_closures, fn_traits)]
-
 use named_fn::named_fn;
 
 fn regular_fn (a: i32, b: Vec<String>) {
@@ -7,11 +6,15 @@ fn regular_fn (a: i32, b: Vec<String>) {
 }
 
 #[named_fn]
-fn named_fn<T: ToString> (a: Vec<T>) -> Vec<String> {
-    return a.into_iter().map(|x| x.to_string()).collect()
+fn as_str<'a> (str: &'a String) -> &'a str {
+    return str as &str
+}
+
+struct Test {
+    f: AsStr,
 }
 
 #[test]
 fn test () {
-    let hi = (NamedFn::new())(vec!["alex", "andreba"]);
+    let hi = (AsStr::new())(&"alex".to_string());
 }

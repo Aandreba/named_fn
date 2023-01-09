@@ -1,7 +1,7 @@
-use std::hint::unreachable_unchecked;
+use std::{hint::unreachable_unchecked, ops::Deref};
 
 use quote::{format_ident, quote, spanned::Spanned};
-use syn::{parse_macro_input, FnArg, GenericParam, ItemFn, LifetimeDef, Signature, TypeParam, Type, ReturnType, parse_quote_spanned, Pat};
+use syn::{parse_macro_input, FnArg, GenericParam, ItemFn, LifetimeDef, Signature, TypeParam, Type, ReturnType, parse_quote_spanned, Pat, parse_quote, Generics};
 
 #[proc_macro_attribute]
 pub fn named_fn(
@@ -47,26 +47,22 @@ pub fn named_fn(
 
     for param in generics.params.iter() {
         match param {
-            GenericParam::Lifetime(LifetimeDef {
-                attrs, lifetime, ..
-            }) => {
-                phantom.push(
-                    quote! { #(#attrs)* named_fn_core::marker::PhantomData<&#lifetime ()> },
-                );
-            }
-
             GenericParam::Type(TypeParam { attrs, ident, .. }) => {
                 phantom.push(quote! { #(#attrs)* named_fn_core::marker::PhantomData<#ident> });
-            }
-
+                phantom_new.push(quote! { named_fn_core::marker::PhantomData });
+            },
             _ => continue,
         };
-
-        phantom_new.push(quote! { named_fn_core::marker::PhantomData })
     }
 
-    let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
+    let mut struct_generics = Generics::default();
+    struct_generics.params = generics.params.iter().filter_map(|x| match x {
+        GenericParam::Lifetime(_) => None,
+        other => Some(other)
+    }).cloned().collect();
 
+    let (_, struct_ty_gen, _) = struct_generics.split_for_impl();
+    let (impl_gen, _, where_gen) = generics.split_for_impl();
     let mut struct_ident = format_ident!("{}", to_pascal_case(&ident.to_string()));
     struct_ident.set_span(ident.span());
 
@@ -74,29 +70,29 @@ pub fn named_fn(
         extern crate core as named_fn_core;
         
         #(#attrs)*
-        #vis struct #struct_ident #impl_gen (#(#phantom),*);
+        #vis struct #struct_ident #struct_ty_gen (#(#phantom),*);
 
-        impl #impl_gen #struct_ident #ty_gen #where_gen {
+        impl #struct_ty_gen #struct_ident #struct_ty_gen {
             #[inline]
             #vis const fn new () -> Self {
                 return Self (#(#phantom_new),*);
             }
         }
 
-        impl #impl_gen named_fn_core::ops::FnOnce<(#(#arg_tys,)*)> for #struct_ident #ty_gen #where_gen {
+        impl #impl_gen named_fn_core::ops::FnOnce<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
             type Output = #output;
             extern "rust-call" fn call_once(self, (#(#arg_pats,)*): (#(#arg_tys,)*)) -> Self::Output #block
         }
 
-        impl #impl_gen named_fn_core::ops::FnMut<(#(#arg_tys,)*)> for #struct_ident #ty_gen #where_gen {
+        impl #impl_gen named_fn_core::ops::FnMut<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
             extern "rust-call" fn call_mut(&mut self, (#(#arg_pats,)*): (#(#arg_tys,)*)) -> Self::Output #block
         }
 
-        impl #impl_gen named_fn_core::ops::Fn<(#(#arg_tys,)*)> for #struct_ident #ty_gen #where_gen {
+        impl #impl_gen named_fn_core::ops::Fn<(#(#arg_tys,)*)> for #struct_ident #struct_ty_gen #where_gen {
             extern "rust-call" fn call(&self, (#(#arg_pats,)*): (#(#arg_tys,)*)) -> Self::Output #block
         }
 
-        impl #impl_gen named_fn_core::default::Default for #struct_ident #ty_gen #where_gen {
+        impl #struct_ty_gen named_fn_core::default::Default for #struct_ident #struct_ty_gen {
             #[inline]
             fn default () -> Self {
                 Self::new()
